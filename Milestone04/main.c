@@ -4,9 +4,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <string.h>
 #include <stdint.h>
+#include <sys/time.h>
 #include <sys/types.h>
+
+char *strdup(char *);
+#include <string.h>
 
 #include "byteblock.h"
 
@@ -26,7 +29,7 @@
 
 /* Use condition variables? */
 //  Uncomment to enable this
-/* #define USE_CONDITION_VARS      */
+#define USE_CONDITION_VARS 
 
 
 
@@ -61,6 +64,12 @@ char stack_ts_cv_push (struct ByteBlock * pBlock)
 {
     /* Condition variable version */
     /* Your code goes here! */
+	pthread_mutex_lock(&StackLock);
+	if(StackSize < STACK_MAX_SIZE){
+		//
+	}
+
+	pthread_mutex_unlock(&StackLock);
     return 0;
 }
 
@@ -127,7 +136,7 @@ void * thread_producer (void * pData)
 
     while(KeepGoing)
     {
-        //printf("Thread %d - Iterations To Go: %d\n", ThreadID, IterationsToGo);
+        printf("Thread %d - Iterations To Go: %d\n", ThreadID, IterationsToGo);
 
         if(IterationsToGo <= 0)
         {
@@ -179,7 +188,7 @@ void * thread_producer (void * pData)
         IterationsToGo--;
     }
 
-//    printf("Producer thread %d is done!\n", ThreadID);
+    printf("Producer thread %d is done!\n", ThreadID);
     return NULL;
 }
 
@@ -224,7 +233,7 @@ void * thread_consumer (void * pData)
 
         if(pBlock != NULL)
         {
-            //printf("Thread %d - Operating on a Block\n", ThreadID);
+            printf("Thread %d - Operating on a Block\n", ThreadID);
 
             /* Search the block to see how many times the requested string appears */
             for(int j=0; j<pBlock->nSize - strlen(SearchString); j++)
@@ -249,7 +258,7 @@ void * thread_consumer (void * pData)
         }     
     }
 
-//    printf("Consumer thread %d is done!\n", ThreadID);
+    printf("Consumer thread %d is done!\n", ThreadID);
     return NULL;
 }
 
@@ -274,10 +283,30 @@ int main (int argc, char *argv[])
     }
 
     // TODO: Measure start time here!
+	
+	struct timeval start_time;
+	gettimeofday(&start_time, NULL); // */
 
-    nThreadsProducers = atoi(argv[1]);
-    nThreadsConsumers = atoi(argv[2]);
-    nIterations = atoi(argv[3]);
+	if(atoi(argv[1]) < 1 || atoi(argv[1]) > 50){
+		printf("Number of producers should be greater than 0 and less than 51\n");
+		return -1;
+	}
+	else
+		nThreadsProducers = atoi(argv[1]);
+
+	if(atoi(argv[2]) < 1 || atoi(argv[2]) > 50){
+		printf("Number of consumers should be greater than 0 and less than 51\n");
+		return -1;
+	}
+	else
+    	nThreadsConsumers = atoi(argv[2]);
+
+	if(atoi(argv[3]) < 1 || atoi(argv[3]) > 25000){
+		printf("Number of iterations should be greater than 0 and less than 25001\n");
+		return -1;
+	}
+	else
+    	nIterations = atoi(argv[3]);
 
     pthread_t *     pThreadProducers;
     pthread_t *     pThreadConsumers;
@@ -320,6 +349,28 @@ int main (int argc, char *argv[])
 
     // TODO: Measure stop time here!
     //  Output the total runtime in an appropriate unit
+	
+	struct timeval stop_time;
+	gettimeofday(&stop_time, NULL);
+	struct timeval time;
+
+	// compute runtime
+	if(stop_time.tv_usec < start_time.tv_usec){
+		int nsec = (stop_time.tv_usec - start_time.tv_usec) / 1000000 + 1;
+		start_time.tv_usec -= 1000000 * nsec;
+		start_time.tv_sec += nsec;
+	}
+	else if(stop_time.tv_usec - start_time.tv_usec > 1000000){
+		int nsec = (stop_time.tv_usec - start_time.tv_usec) / 1000000;
+		start_time.tv_usec += 1000000 * nsec;
+		start_time.tv_sec -= nsec;
+	}
+	time.tv_sec = stop_time.tv_sec - start_time.tv_sec;
+	time.tv_usec = stop_time.tv_usec - start_time.tv_usec;
+
+	
+	printf("The total runtime of the program is %ld seconds and %ld microseconds\n", 
+				time.tv_sec, time.tv_usec); 
 
     printf("Drumroll please .... %d occurrences of `the'\n", CountFound);
 
